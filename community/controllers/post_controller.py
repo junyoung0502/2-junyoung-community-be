@@ -8,10 +8,6 @@ class PostController:
     def get_posts(offset: int, size: int, response: Response):
         """전체 게시글 목록을 가져오는 흐름 제어"""
         
-        # 1. 입력 유효성 검증
-        if size <= 0:
-            raise HTTPException(status_code=400, detail="SIZE_REQUIRED_POSITIVE")
-
         # 2. 데이터 필터링 (Model에서 데이터 획득)
         all_posts = PostModel.get_all_posts()
         filtered_posts = [p for p in all_posts if p["postId"] >= offset]
@@ -33,7 +29,6 @@ class PostController:
         
         summaries = []
         for post in posts[:size]:
-            
             # content 필드를 제외한 post 생성
             summary = {
                 "postId": post["postId"],
