@@ -1,5 +1,5 @@
 # utils.py
-from typing import Any
+from typing import Any, Generic, TypeVar, Optional
 from pydantic import BaseModel, EmailStr, Field
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
@@ -19,20 +19,3 @@ class UserSignupRequest(BaseModel):
 class UserLoginRequest(BaseModel):
     email: EmailStr
     password: str
-
-class WrappedAPIRoute(APIRoute):
-    def get_route_handler(self):
-        original_handler = super().get_route_handler()
-
-        async def custom_handler(request: Request) -> Any:
-            result = await original_handler(request)
-            
-            # 이미 완벽한 응답(Response) 객체라면 그대로 내보냄 (쿠키 등 포함)
-            if isinstance(result, Response):
-                return result
-
-            # [핵심] 아무 고민 없이 JSON으로 포장만 해서 보냄
-            # status_code는 이미 요리사가 찍어둔 걸 FastAPI가 알아서 사용함
-            return JSONResponse(content=result.model_dump())
-
-        return custom_handler

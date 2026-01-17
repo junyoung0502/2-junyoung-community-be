@@ -1,11 +1,11 @@
 # routes/post_route.py
 from fastapi import APIRouter, Query, Response
 from controllers.post_controller import PostController
-from utils import WrappedAPIRoute
+from utils import BaseResponse
 
-router = APIRouter(prefix="/api/v1", route_class=WrappedAPIRoute)
+router = APIRouter(prefix="/api/v1")
 
-@router.get("/posts")
+@router.get("/posts", response_model=BaseResponse)
 async def get_all_posts(
     response: Response,
     offset: int = Query(1, ge=1, description="조회 시작 게시글 ID"),
