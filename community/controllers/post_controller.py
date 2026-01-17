@@ -1,7 +1,7 @@
 # controllers/post_controller.py
 from fastapi import HTTPException, Response
 from models.post_model import PostModel
-from utils import BaseResponse
+from utils import BaseResponse, PostDetail
 
 class PostController:
     @staticmethod
@@ -43,3 +43,25 @@ class PostController:
             summaries.append(summary)
 
         return summaries
+    
+    @staticmethod
+    def get_post_detail(post_id: int, response: Response) -> BaseResponse:
+        """게시글 상세 조회 및 조회수 증가"""
+        
+        # 1. 게시글 찾기
+        post = PostModel.get_post_by_id(post_id)
+        if not post:
+            raise HTTPException(status_code=404, detail="POST_NOT_FOUND")
+        
+        # 2. 조회수 증가 (비즈니스 로직)
+        # 실제 DB라면 update 쿼리를 날려야겠지만, 메모리 DB라 직접 수정
+        post["viewCount"] = post.get("viewCount", 0) + 1
+        
+        # 3. 응답 객체 변환 (Pydantic 모델 사용)
+        post_detail = PostDetail(**post)
+
+        response.status_code = 200
+        return BaseResponse(
+            message="POST_DETAIL_GET_SUCCESS",
+            data=post_detail
+        )

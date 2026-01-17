@@ -1,10 +1,11 @@
 # routes/post_route.py
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Path, Response
 from controllers.post_controller import PostController
 from utils import BaseResponse
 
 router = APIRouter(prefix="/api/v1")
 
+# 전체 게시물 조회
 @router.get("/posts", response_model=BaseResponse)
 async def get_all_posts(
     response: Response,
@@ -13,3 +14,12 @@ async def get_all_posts(
 ):
     # Controller를 통해 데이터를 가져옵니다.    
     return PostController.get_posts(offset, size, response)
+
+# 상세 게시물 조회
+@router.get("/posts/{post_id}", response_model=BaseResponse)
+async def get_post_detail(
+    response: Response,
+    # Path Parameter 검증: 1 이상의 정수만 허용
+    post_id: int = Path(..., ge=1, description="게시글 ID (1 이상)"),
+):
+    return PostController.get_post_detail(post_id, response)

@@ -29,3 +29,9 @@ class PostModel:
     @staticmethod
     def get_all_posts():
         return posts_db
+
+    @staticmethod
+    def get_post_by_id(post_id: int):
+        """ID로 게시물을 찾아 반환합니다. 없으면 None을 리턴."""
+        # next()를 사용하여 리스트에서 매칭되는 첫 번째 요소를 찾음
+        return next((p for p in posts_db if p["postId"] == post_id), None)
