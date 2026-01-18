@@ -61,3 +61,6 @@ async def get_current_user(session_id: str | None = Cookie(default=None)) -> Use
     
     return UserInfo(**user_dict)
 
+# 댓글 생성 요청 스키마
+class CommentCreateRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=200, description="댓글 내용")
