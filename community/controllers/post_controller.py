@@ -2,7 +2,7 @@
 from datetime import datetime
 from fastapi import HTTPException, Response
 from models.post_model import PostModel
-from utils import BaseResponse, PostCreateRequest, PostDetail, UserInfo
+from utils import BaseResponse, PostCreateRequest, PostDetail, UserInfo, PostUpdateRequest
 
 class PostController:
     @staticmethod
@@ -85,5 +85,31 @@ class PostController:
         response.status_code = 201
         return BaseResponse(
             message="POST_CREATE_SUCCESS",
+            data={"postId": post_id}
+        )
+    
+    @staticmethod
+    def update_post(post_id: int, request: PostUpdateRequest, user: UserInfo, response: Response):
+        """게시글 수정: 작성자 본인만 가능"""
+        
+        # 1. 게시글 존재 확인
+        post = PostModel.get_post_by_id(post_id)
+        if not post:
+            raise HTTPException(status_code=404, detail="POST_NOT_FOUND")
+        
+        # 2. [핵심 보안] 권한 체크 (내 글이 아니면 403 Forbidden)
+        if post["author"] != user.nickname:
+            raise HTTPException(status_code=403, detail="PERMISSION_DENIED")
+        
+        # 3. 업데이트 수행
+        update_data = {
+            "title": request.title,
+            "content": request.content
+        }
+        PostModel.update_post(post_id, update_data)
+        
+        # 4. 응답
+        return BaseResponse(
+            message="POST_UPDATE_SUCCESS",
             data={"postId": post_id}
         )

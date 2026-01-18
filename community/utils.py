@@ -23,6 +23,11 @@ class PostCreateRequest(BaseModel):
     title: str = Field(min_length=2, max_length=50, description="제목")
     content: str = Field(min_length=5, description="내용")
 
+# 게시글 수정 요청 스키마
+class PostUpdateRequest(BaseModel):
+    title: str = Field(min_length=2, max_length=50, description="수정할 제목")
+    content: str = Field(min_length=5, description="수정할 내용")
+
 # 게시글 상세 응답용 스키마
 class PostDetail(BaseModel):
     postId: int

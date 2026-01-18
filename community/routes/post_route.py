@@ -1,7 +1,7 @@
 # routes/post_route.py
 from fastapi import APIRouter, Query, Path, Response, Depends
 from controllers.post_controller import PostController
-from utils import BaseResponse, get_current_user, UserInfo, PostCreateRequest
+from utils import BaseResponse, get_current_user, UserInfo, PostCreateRequest, PostUpdateRequest
 
 # router = APIRouter(prefix="/api/v1")
 # utils에 있는 함수로 문지기를 세움
@@ -39,3 +39,15 @@ async def create_post(
 ):
     # 컨트롤러에게 요청 데이터와 유저 정보를 함께 넘김
     return PostController.create_post(request, user, response)
+
+# 게시물 수정
+@router.put("/posts/{post_id}", response_model=BaseResponse)
+async def update_post(
+    response: Response,
+    request: PostUpdateRequest,
+    # 1. Path 파라미터로 수정할 글 번호를 받음
+    post_id: int = Path(..., ge=1, description="게시글 ID"),
+    # 2. 문지기를 통해 '로그인한 사람' 정보를 받음
+    user: UserInfo = Depends(get_current_user)
+):
+    return PostController.update_post(post_id, request, user, response)
