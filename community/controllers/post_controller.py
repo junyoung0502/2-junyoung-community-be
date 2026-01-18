@@ -2,7 +2,8 @@
 from datetime import datetime
 from fastapi import HTTPException, Response
 from models.post_model import PostModel
-from models.comment_model import CommentModel  # 댓글 삭제 시 사용
+from models.comment_model import CommentModel
+from models.like_model import LikeModel
 from utils import BaseResponse, PostCreateRequest, PostDetail, UserInfo, PostUpdateRequest
 
 class PostController:
@@ -129,8 +130,9 @@ class PostController:
         if post["author"] != user.nickname:
             raise HTTPException(status_code=403, detail="PERMISSION_DENIED")
         
-        # 3. 삭제 수행 (댓글도 함께 삭제)
+        # 3. 삭제 수행 (댓글, 좋아요도 함께 삭제)
         CommentModel.delete_comments_by_post_id(post_id)
+        LikeModel.delete_likes_by_post_id(post_id)
         PostModel.delete_post(post_id)
         
         # 4. 응답
