@@ -23,6 +23,7 @@ class UserInfo(BaseModel):
     email: EmailStr
     nickname: str
     profileImage: str | None = None # 없을 수도 있음
+    status: str
 
 # 게시글 생성 요청 스키마
 class PostCreateRequest(BaseModel):
@@ -52,10 +53,20 @@ class UserSignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
     nickname: str = Field(min_length=2, max_length=30)
+    profileImage: str | None = Field(default=None, description="프로필 이미지 URL (선택 사항)")
 
 class UserLoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+class UserUpdateRequest(BaseModel):
+    nickname: str = Field(min_length=2, max_length=30, description="변경할 닉네임")
+    profileImage: str | None = Field(default=None, description="변경할 프로필 이미지 URL")
+
+# 비밀번호 변경 요청
+class PasswordChangeRequest(BaseModel):
+    currentPassword: str = Field(..., description="현재 비밀번호")
+    newPassword: str = Field(min_length=8, description="새로운 비밀번호")
 
 # 현재 로그인한 사용자를 확인하는 의존성 함수
 async def get_current_user(session_id: str | None = Cookie(default=None)) -> UserInfo:

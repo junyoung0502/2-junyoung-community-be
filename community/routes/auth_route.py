@@ -1,7 +1,7 @@
 # routes/auth_route.py
 from fastapi import APIRouter, Body, Response, Request, Depends, Cookie
 from controllers.auth_controller import AuthController
-from utils import UserSignupRequest, UserLoginRequest, BaseResponse, limiter, get_current_user, UserInfo
+from utils import UserSignupRequest, UserLoginRequest, BaseResponse, limiter, get_current_user, UserInfo, UserUpdateRequest, PasswordChangeRequest
 
 router = APIRouter(prefix="/api/v1/auth")
 
@@ -21,8 +21,15 @@ async def login(request: Request, response: Response, user_request: UserLoginReq
     # user_info를 반환해야 WrappedAPIRoute가 정상 작동합니다.
     return response_obj
 
-@router.get("/me", response_model=BaseResponse)
-@limiter.limit("60/minute")
-async def check_login_status(request: Request,user: UserInfo = Depends(get_current_user), session_id: str = Cookie(None)):
+@router.post("/logout", response_model=BaseResponse)
+async def logout(
+    request: Request, 
+    response: Response,
+    # 로그인 여부 체크 (로그인 안 한 사람은 로그아웃도 못함)
+    user: UserInfo = Depends(get_current_user) 
+):
+    # 쿠키에서 직접 session_id를 꺼냅니다.
+    session_id = request.cookies.get("session_id")
+    
+    return AuthController.logout(session_id, response)
 
-    return AuthController.get_me(user, session_id)

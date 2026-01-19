@@ -2,10 +2,12 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from fastapi.exceptions import RequestValidationError
 from routes.post_route import router as post_router
 from routes.auth_route import router as auth_router
 from routes.comment_route import router as comment_router
 from routes.like_route import router as like_router
+from routes.user_route import router as user_router
 from slowapi.errors import RateLimitExceeded
 from utils import limiter
 
@@ -25,6 +27,12 @@ async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):
 
 app.add_exception_handler(RateLimitExceeded, custom_rate_limit_handler)
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=400,
+        content={"message": "INVALID_REQUEST", "data": None}
+    )
 
 # 공통 예외 처리기는 이미 작성된 것을 그대로 사용합니다.
 # 그러면 400, 409 에러도 자동으로 {"message": "...", "data": null} 형식이 됩니다.
@@ -49,3 +57,4 @@ app.include_router(post_router)
 app.include_router(auth_router)
 app.include_router(comment_router)
 app.include_router(like_router)
+app.include_router(user_router)

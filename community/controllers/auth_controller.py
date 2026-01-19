@@ -3,9 +3,8 @@ from fastapi import HTTPException, Response
 from models.user_model import UserModel
 from utils import BaseResponse, UserSignupRequest, UserLoginRequest, UserInfo
 
-
-
 class AuthController:
+
     @staticmethod
     def signup(request: UserSignupRequest, response: Response):
                 
@@ -55,21 +54,14 @@ class AuthController:
         return session_id, BaseResponse(message="LOGIN_SUCCESS", data=user_info)
     
     @staticmethod
-    def get_me(user: UserInfo, session_id: str) -> BaseResponse:
+    def logout(session_id: str, response: Response):
         """
-        내 정보 조회 비즈니스 로직
+        로그아웃 비즈니스 로직
         """
-        # 응답 데이터(Output Format)를 여기서 다 만듭니다.
-        response_data = {
-            "userId": user.userId,
-            "email": user.email,
-            "nickname": user.nickname,
-            "profileImage": user.profileImage,
-            "authToken": session_id 
-        }
-
-        # 최종 응답 객체 반환
-        return BaseResponse(
-            message="AUTH_SUCCESS",
-            data=response_data
-        )
+        # 1. 서버 메모리에서 세션 삭제
+        UserModel.delete_session(session_id)
+        
+        # 2. 브라우저 쿠키 삭제 (만료 시간을 0으로 설정하여 즉시 파기)
+        response.delete_cookie(key="session_id")
+        
+        return BaseResponse(message="LOGOUT_SUCCESS", data=None)

@@ -36,16 +36,68 @@ class UserModel:
         return next((user for user in users_db if user["nickname"] == nickname), None)
 
     @staticmethod
+    def find_by_id(userId: int):
+        """userId로 사용자 검색"""
+        return next((user for user in users_db if user["userId"] == userId), None)
+
+    @staticmethod
     def save_user(user_data: dict):
-        """새로운 사용자를 리스트에 저장하고 발급된 ID를 반환"""
+        """회원가입: 사용자 정보를 리스트에 저장"""
+        # 1. 새로운 ID 생성 (현재 개수 + 1)
         new_id = len(users_db) + 1
+        
+        # 2. 데이터 보정 (userId, status 추가)
         user_data["userId"] = new_id
+        user_data["status"] = "active" # 기본 상태는 '활동 중'
+        
+        # 3. DB(리스트)에 저장
         users_db.append(user_data)
+        
         return new_id
+
+    @staticmethod
+    def update_user(userId: int, update_data: dict):
+        '''회원 정보 수정'''
+        user = UserModel.find_by_id(userId)
+        if user:
+            user.update(update_data)
+            return True
+        return False
+
+    @staticmethod
+    def update_password(userId: int, new_password: str):
+        '''비밀번호 변경'''
+        user = UserModel.find_by_id(userId)
+        if user:
+            user["password"] = new_password
+            return True
+        return False
     
     @staticmethod
+    def delete_session(session_id: str):
+        """세션 ID에 해당하는 세션을 삭제합니다."""
+        if session_id in sessions_db:
+            del sessions_db[session_id]
+
+    @staticmethod
+    def delete_user(userId: int):
+        '''회원 탈퇴'''
+        global users_db, sessions_db
+        
+        user = UserModel.find_by_id(userId)
+        if user:
+            users_db.remove(user)
+        
+            # 관련된 세션도 모두 삭제 (강제 로그아웃)
+            for session_id, email in list(sessions_db.items()):
+                if email == user["email"]:
+                    del sessions_db[session_id]
+            return True
+        return False
+
+    @staticmethod
     def create_session(email: str):
-        # 고유한 세션 ID 생성
+        """새로운 세션 ID를 생성하고 저장합니다."""
         session_id = str(uuid.uuid4())
         sessions_db[session_id] = email
         return session_id
@@ -66,3 +118,4 @@ class UserModel:
         """[409 체크용] 이메일이 세션 저장소에 이미 있는지 확인"""
         # 딕셔너리의 값(email) 중에 찾는 email이 있는지 확인
         return email in sessions_db.values()
+    
