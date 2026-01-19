@@ -8,6 +8,7 @@ from models.user_model import UserModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+
 # Rate limiter 설정
 # key_func=get_remote_address : 요청한 사람의 IP 주소를 기준으로 카운팅
 limiter = Limiter(key_func=get_remote_address)

@@ -13,6 +13,7 @@ from utils import limiter
 
 app = FastAPI()
 
+
 # Rate Limiter
 app.state.limiter = limiter
 async def custom_rate_limit_handler(request: Request, exc: RateLimitExceeded):

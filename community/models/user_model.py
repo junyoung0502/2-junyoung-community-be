@@ -1,5 +1,6 @@
 # models/user_model.py
 import uuid # 세션 ID 생성을 위한 라이브러리
+from security import SecurityUtils
 
 # 회원 정보를 담을 리스트 (메모리에 저장되므로 서버 재시작 시 초기화됨)
 users_db = [
@@ -50,6 +51,9 @@ class UserModel:
         user_data["userId"] = new_id
         user_data["status"] = "active" # 기본 상태는 '활동 중'
         
+        # 비밀번호 해싱
+        user_data["password"] = SecurityUtils.get_password_hash(user_data["password"])
+
         # 3. DB(리스트)에 저장
         users_db.append(user_data)
         
@@ -69,7 +73,7 @@ class UserModel:
         '''비밀번호 변경'''
         user = UserModel.find_by_id(userId)
         if user:
-            user["password"] = new_password
+            user["password"] = SecurityUtils.get_password_hash(new_password)
             return True
         return False
     

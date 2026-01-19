@@ -2,6 +2,7 @@
 from fastapi import HTTPException
 from models.user_model import UserModel
 from utils import BaseResponse, UserInfo, UserUpdateRequest, PasswordChangeRequest
+from security import SecurityUtils
 
 class UserController:
 
@@ -55,7 +56,7 @@ class UserController:
 
         # 1. 현재 비밀번호 확인 (DB에서 직접 조회하여 비교)
         user = UserModel.find_by_id(userId)
-        if user["password"] != request.currentPassword:
+        if not SecurityUtils.verify_password(request.currentPassword, user["password"]):
             raise HTTPException(status_code=401, detail="PASSWORD_MISMATCH")
         
         # 2. 변경

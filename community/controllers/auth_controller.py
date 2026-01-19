@@ -2,6 +2,7 @@
 from fastapi import HTTPException, Response
 from models.user_model import UserModel
 from utils import BaseResponse, UserSignupRequest, UserLoginRequest, UserInfo
+from security import SecurityUtils
 
 class AuthController:
 
@@ -30,7 +31,7 @@ class AuthController:
         user = UserModel.find_by_email(request.email)
 
         # 1. [401] 사용자 존재 여부 및 비밀번호 일치 여부 확인
-        if not user or user["password"] != request.password:
+        if not user or not SecurityUtils.verify_password(request.password, user["password"]):
             raise HTTPException(status_code=401, detail="LOGIN_FAILED")
         
         # 2. [403] 정지된 계정 체크 (ACCOUNT_SUSPENDED)
