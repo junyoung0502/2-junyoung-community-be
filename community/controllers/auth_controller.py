@@ -8,18 +8,14 @@ from utils import BaseResponse, UserSignupRequest, UserLoginRequest
 class AuthController:
     @staticmethod
     def signup(request: UserSignupRequest, response: Response):
-        # # 1. 필수값 체크
-        # if not request.email: raise HTTPException(status_code=400, detail="EMAIL_REQUIRED")
-        # if not request.password: raise HTTPException(status_code=400, detail="PASSWORD_REQUIRED")
-        # if not request.nickname: raise HTTPException(status_code=400, detail="NICKNAME_REQUIRED")
-        
-        # 2. 중복 체크 (이 코드가 진짜 들어있어야 막힙니다!)
+                
+        # 1. 중복 검사 (이메일, 닉네임)
         if UserModel.find_by_email(request.email):
             raise HTTPException(status_code=409, detail="EMAIL_ALREADY_EXISTS")
         if UserModel.find_by_nickname(request.nickname):
             raise HTTPException(status_code=409, detail="NICKNAME_ALREADY_EXISTS")
 
-        # 3. 저장 및 반환 (설계서 규격인 userId로 맞춤)
+        # 2. 저장 및 반환 (설계서 규격인 userId로 맞춤)
         user_data = request.model_dump()
         user_id = UserModel.save_user(user_data)
 
