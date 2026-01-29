@@ -35,14 +35,19 @@ class AuthController:
             raise HTTPException(status_code=401, detail="LOGIN_FAILED")
         
         # 2. [403] 정지된 계정 체크 (ACCOUNT_SUSPENDED)
-        if user.get("status") == "suspended":
+        if user.get("status") == "suspended_perm":
             raise HTTPException(status_code=403, detail="ACCOUNT_SUSPENDED")
         
+        elif user.get("status") == "suspended_temp":
+            # 일시 정지의 경우, 언제 정지됐는지 정보를 함께 주면 더 친절하겠지?
+            detail_msg = f"ACCOUNT_TEMPORARILY_SUSPENDED (Started at: {user.get('suspensionStart')})"
+            raise HTTPException(status_code=403, detail=detail_msg)
+
         # 3. [409] 이미 로그인된 계정 체크 (ALREADY_LOGIN)
         if UserModel.is_already_logged_in(request.email):
             raise HTTPException(status_code=409, detail="ALREADY_LOGIN")
 
-        session_id = UserModel.create_session(request.email)
+        session_id = UserModel.create_session(user["userId"])
         # 보안을 위해 토큰은 따로 빼고 정보만 반환
         user_info = {
             "userId": user["userId"],
