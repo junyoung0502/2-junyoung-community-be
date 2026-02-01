@@ -11,7 +11,6 @@ from routes.user_route import router as user_router
 from slowapi.errors import RateLimitExceeded
 from utils import limiter
 from fastapi.middleware.cors import CORSMiddleware
-from database import get_db  # database.py에서 get_db 함수 가져오기
 from database import engine  # DB 엔진 가져오기
 from models.user_model import UserModel  # 수정한 유저 모델
 

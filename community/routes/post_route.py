@@ -16,11 +16,11 @@ router = APIRouter(
 async def get_all_posts(
     request: Request,
     response: Response,
-    offset: int = Query(1, ge=1, description="조회 시작 게시글 ID"),
+    lastPostId: int = Query(None, description="마지막으로 확인한 게시물 ID"),
     size: int = Query(10, ge=0, le=100, description="가져올 게시글 개수")
 ):
     # Controller를 통해 데이터를 가져옵니다.    
-    return PostController.get_posts(offset, size, response)
+    return PostController.get_posts(lastPostId, size, response)
 
 # 상세 게시물 조회
 @router.get("/posts/{post_id}", response_model=BaseResponse)

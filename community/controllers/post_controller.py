@@ -9,22 +9,35 @@ from utils import BaseResponse, PostCreateRequest, PostDetail, UserInfo, PostUpd
 
 class PostController:
     @staticmethod
-    def get_posts(offset: int, size: int, response: Response):
+    def get_posts(last_post_id: int, size: int, response: Response):
         """전체 게시글 목록을 가져오는 흐름 제어"""
         
-        # 데이터 필터링 (Model에서 데이터 획득)
-        all_posts = PostModel.get_all_posts()
-        filtered_posts = [p for p in all_posts if p["postId"] >= offset]
+        # [방어 코드] 0이나 음수가 들어오면 처음부터 보여주도록 None 처리
+        actual_last_id = None if (last_post_id is None or last_post_id <= 0) else last_post_id
+        
+        # 1. 모델에서 데이터 가져오기
+        posts = PostModel.get_all_posts(last_post_id=actual_last_id, size=size)
 
-        if not filtered_posts:
-            raise HTTPException(status_code=404, detail="POSTS_NOT_FOUND")
+        # 2. 데이터가 없을 때 처리
+        if not posts:
+            response.status_code = 200
+            return BaseResponse(
+                message="NO_MORE_POSTS",
+                data={"posts": [], "nextCursor": None}
+            )
         
-        summaries = PostController._prepare_post_summaries(filtered_posts, size)
-        
-        response.status_code = 200  # 상태 코드 설정
+        # 3. [핵심] 다음 페이지의 기준점(nextCursor) 계산
+        # 가져온 데이터의 마지막 항목 ID를 다음 요청 때 쓰라고 알려줍니다.
+        # 만약 요청한 size보다 적게 가져왔다면 '더 이상 글이 없음'을 의미하므로 None을 줍니다.
+        next_cursor = posts[-1]["postId"] if len(posts) == size else None
+
+        response.status_code = 200
         return BaseResponse(
             message="POST_RETRIEVAL_SUCCESS",
-            data=summaries
+            data={
+                "posts": posts,
+                "nextCursor": next_cursor
+            }
         )
 
     @staticmethod
@@ -50,61 +63,22 @@ class PostController:
     
     @staticmethod
     def get_post_detail(post_id: int, response: Response) -> BaseResponse:
-        """게시글 상세 조회 및 조회수 증가"""
-        
-        # 1. 게시글 찾기
+        """게시글 상세 조회 및 조회수 증가 (댓글은 별도 API에서 처리)"""
+    
+        # 1. 게시글과 작성자 정보를 한 번에 가져옴 (Model에서 Join 처리됨)
         post = PostModel.get_post_by_id(post_id)
+        
         if not post:
+            # 특정 글을 찍어서 들어왔는데 없으면 에러(Raise)가 정답!
             raise HTTPException(status_code=404, detail="POST_NOT_FOUND")
         
         # 2. 조회수 증가 (비즈니스 로직)
         PostModel.increase_view_count(post_id)
         
-        # 3. [NEW] 작성자 상세 정보 찾기 (Join)
-        # 게시글의 author(닉네임)로 유저 DB 검색
-        post_author = UserModel.find_by_nickname(post["author"])
-        
-        # 유저 정보를 찾아서 AuthorDetail 객체 생성
-        if post_author:
-            author_data = AuthorDetail(
-                userId=post_author["userId"],
-                nickname=post_author["nickname"],
-                profileImageUrl=post_author.get("profileImage")
-            )
-        else:
-            # 탈퇴한 회원이거나 정보가 없을 경우 방어 코드
-            author_data = AuthorDetail(
-                userId=0, 
-                nickname=post["author"], 
-                profileImageUrl=None
-            )
-
-        # 4. 댓글 목록 가져오기 (기존 로직 유지)
-        raw_comments = CommentModel.get_comments_by_post_id(post_id)
-        comment_list = []
-        for c in raw_comments:
-            comment_list.append(CommentSimple(
-                author=c["author"],  # 닉네임
-                content=c["content"], # 내용
-                createdAt=c.get("createdAt", "") # 작성일
-            )) 
-
-        # 5. 최종 응답 생성
-        response_data = PostDetail(
-            postId=post["postId"],
-            title=post["title"],
-            author=author_data,
-            content=post["content"],
-            createdAt=post["createdAt"],
-            likeCount=post["likeCount"],
-            commentCount=len(comment_list),
-            viewCount=post["viewCount"],
-            comments=comment_list # (아까 만든 댓글 리스트 변수)
-        )
-        
+        response.status_code = 200
         return BaseResponse(
-            message="POST_DETAIL_GET_SUCCESS",
-            data=response_data
+            message="POST_DETAIL_SUCCESS",
+            data=post
         )
 
     @staticmethod

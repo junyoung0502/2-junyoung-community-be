@@ -218,9 +218,9 @@ class UserModel:
         with engine.connect() as conn:
         # 1. SQL 작성 (users와 sessions 테이블을 email로 조인)
             query = text("""
-                SELECT u.* FROM users u
-                JOIN sessions s ON u.email = s.email
-                WHERE s.session_id = :session_id
+            SELECT u.* FROM users u
+            JOIN sessions s ON u.id = s.user_id
+            WHERE s.session_id = :session_id
             """)
             
             # 2. 실행 및 한 줄 가져오기
@@ -228,13 +228,14 @@ class UserModel:
             
             # 3. 결과가 있으면 매핑하여 반환
             if result:
+                row = result._mapping
                 # DB 컬럼명에 맞춰 결과 반환 (필요한 것 위주로)
                 return {
-                    "userId": result.id,
-                    "email": result.email,
-                    "nickname": result.nickname,
-                    "profileImage": result.profileImage,
-                    "status": result.status
+                    "userId": row["id"],
+                    "email": row["email"],
+                    "nickname": row["nickname"],
+                    "profileImage": row.get("profile_url") or row.get("profileImage"),
+                    "status": row.get("account_status", "active")
                 }
         return None
     
