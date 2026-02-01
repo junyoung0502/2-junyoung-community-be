@@ -82,13 +82,13 @@ class PostModel:
         """특정 게시글 상세 조회 (작성자 정보 포함 JOIN)"""
         with engine.connect() as conn:
             query = text("""
-                SELECT p.id as postId, p.title, p.content, 
-                    p.created_at as createdAt, p.like_count as likeCount, 
-                    p.comment_count as commentCount, p.view_count as viewCount,
-                    u.id as userId, u.nickname as author, u.profile_url as profileImage
-                FROM posts p
-                JOIN users u ON p.user_id = u.id
-                WHERE p.id = :post_id AND p.deleted_at IS NULL
+                SELECT p.id as postId, p.title, p.content, p.created_at as createdAt, p.view_count as viewCount,
+                   u.id as userId, u.nickname as author, u.profile_url as profileImage,
+                   (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likeCount,
+                   (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) as commentCount
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = :post_id AND p.deleted_at IS NULL
             """)
             result = conn.execute(query, {"post_id": post_id}).fetchone()
             
@@ -114,44 +114,59 @@ class PostModel:
     
     @staticmethod
     def create_post(post_data: dict):
-        """새 게시물을 생성하고 저장합니다."""
-        """DB에서 가장 큰 ID를 찾아 +1 하여 발급"""
-        new_id = 1
-        
-        if posts_db:
-            max_id = max(post["postId"] for post in posts_db)
-            new_id = max_id + 1
-            
-        post_data["postId"] = new_id
-        posts_db.append(post_data)
-        
-        return new_id
+        """[DB 방식] 새 게시물을 생성하고 저장합니다."""
+        with engine.connect() as conn:
+            query = text("""
+                INSERT INTO posts (user_id, title, content, created_at, updated_at)
+                VALUES (:user_id, :title, :content, NOW(), NOW())
+            """)
+            result = conn.execute(query, {
+                "user_id": post_data["userId"],
+                "title": post_data["title"],
+                "content": post_data["content"]
+            })
+            conn.commit() # INSERT 작업 후엔 꼭 commit을 해줘야 DB에 저장됩니다.
+            return result.lastrowid # 방금 생성된 게시글의 ID를 반환합니다.
     
     @staticmethod
     def update_post(post_id: int, update_data: dict):
-        """ID로 게시물을 찾아 내용을 업데이트합니다."""
-        # 리스트에서 찾아서 업데이트 (레퍼런스 참조라 원본이 바뀜)
-        for post in posts_db:
-            if post["postId"] == post_id:
-                # update_data에 있는 키들(title, content)만 덮어쓰기
-                post.update(update_data)
-                return True # 성공
-        return False # 실패
+        """[DB 방식] ID로 게시물을 찾아 내용을 업데이트합니다."""
+        with engine.connect() as conn:
+            query = text("""
+                UPDATE posts 
+                SET title = :title, content = :content, updated_at = NOW()
+                WHERE id = :post_id AND deleted_at IS NULL
+            """)
+            result = conn.execute(query, {
+                "title": update_data["title"],
+                "content": update_data["content"],
+                "post_id": post_id
+            })
+            conn.commit()
+            return result.rowcount > 0 # 수정된 행이 있으면 True 반환
     
     @staticmethod
     def delete_post(post_id: int):
-        """ID로 게시물을 찾아 리스트에서 삭제"""
-        for post in posts_db:
-            if post["postId"] == post_id:
-                posts_db.remove(post) # 리스트에서 해당 딕셔너리 제거
-                return True
-        return False
+        """[DB 방식] 실제 삭제 대신 deleted_at에 시간을 기록하는 '소프트 삭제'를 수행합니다."""
+        with engine.connect() as conn:
+            query = text("""
+                UPDATE posts 
+                SET deleted_at = NOW() 
+                WHERE id = :post_id
+            """)
+            result = conn.execute(query, {"post_id": post_id})
+            conn.commit()
+            return result.rowcount > 0
     
     @staticmethod
     def increase_view_count(post_id: int):
-        """조회수 1 증가"""
-        for post in posts_db:
-            if post["postId"] == post_id:
-                post["viewCount"] += 1
-                return True
-        return False
+        """[DB 방식] 게시글 조회 시 view_count 컬럼을 1 증가시킵니다."""
+        with engine.connect() as conn:
+            query = text("""
+                UPDATE posts 
+                SET view_count = view_count + 1 
+                WHERE id = :post_id
+            """)
+            result = conn.execute(query, {"post_id": post_id})
+            conn.commit()
+            return result.rowcount > 0
