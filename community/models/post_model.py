@@ -2,31 +2,6 @@
 from sqlalchemy import text
 from database import engine
 
-# posts_db = [
-#     {
-#         "postId": 1,
-#         "title": "제목 1",
-#         "author": "더미 작성자1",
-#         "content": "이것은 1번 게시글의 아주 긴 상세 내용입니다. 목록에서는 보이지 않아야 합니다.",
-#         "profileImage": "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-#         "createdAt": "2021-01-01 00:00:00",
-#         "likeCount": 0,
-#         "commentCount": 0,
-#         "viewCount": 0
-#     },
-#     {
-#         "postId": 2,
-#         "title": "제목 2",
-#         "author": "더미 작성자2",
-#         "content": "2번 게시글의 내용입니다. 역시 목록 조회 시에는 제외됩니다.",
-#         "profileImage": "https://cdn.pixabay.com/photo/2017/06/13/12/53/profile-2398782_1280.png",
-#         "createdAt": "2021-01-01 00:00:00",
-#         "likeCount": 5,
-#         "commentCount": 2,
-#         "viewCount": 10
-#     }
-# ]
-
 class PostModel:
     @staticmethod
     def get_all_posts(last_post_id: int = None, size: int = 10):
@@ -37,7 +12,7 @@ class PostModel:
                         p.created_at as createdAt, p.view_count as viewCount,
                         u.profile_url as profileImage,
                         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likeCount,
-                        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) as commentCount
+                        (SELECT COUNT(*) FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = p.id AND c.deleted_at IS NULL) as commentCount
                     FROM posts p
                     JOIN users u ON p.user_id = u.id
                     WHERE p.deleted_at IS NULL
@@ -50,7 +25,7 @@ class PostModel:
                         p.created_at as createdAt, p.view_count as viewCount,
                         u.profile_url as profileImage,
                         (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likeCount,
-                        (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) as commentCount
+                        (SELECT COUNT(*) FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = p.id AND c.deleted_at IS NULL) as commentCount
                     FROM posts p
                     JOIN users u ON p.user_id = u.id
                     WHERE p.id < :last_id AND p.deleted_at IS NULL
@@ -82,10 +57,10 @@ class PostModel:
         """특정 게시글 상세 조회 (작성자 정보 포함 JOIN)"""
         with engine.connect() as conn:
             query = text("""
-                SELECT p.id as postId, p.title, p.content, p.created_at as createdAt, p.view_count as viewCount,
+                SELECT p.id as postId, p.title, p.content, p.image_url, p.created_at as createdAt, p.view_count as viewCount,
                    u.id as userId, u.nickname as author, u.profile_url as profileImage,
                    (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) as likeCount,
-                   (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id AND c.deleted_at IS NULL) as commentCount
+                   (SELECT COUNT(*) FROM comments c JOIN users u ON c.user_id = u.id WHERE c.post_id = p.id AND c.deleted_at IS NULL) as commentCount
             FROM posts p
             JOIN users u ON p.user_id = u.id
             WHERE p.id = :post_id AND p.deleted_at IS NULL
@@ -101,6 +76,7 @@ class PostModel:
                 "postId": row["postId"],
                 "title": row["title"],
                 "content": row["content"],
+                "image_url": row["image_url"],
                 "createdAt": row["createdAt"],
                 "likeCount": row["likeCount"],
                 "commentCount": row["commentCount"],
@@ -117,13 +93,14 @@ class PostModel:
         """[DB 방식] 새 게시물을 생성하고 저장합니다."""
         with engine.connect() as conn:
             query = text("""
-                INSERT INTO posts (user_id, title, content, created_at, updated_at)
-                VALUES (:user_id, :title, :content, NOW(), NOW())
+                INSERT INTO posts (user_id, title, content, image_url, created_at, updated_at)
+                VALUES (:user_id, :title, :content, :image_url, NOW(), NOW())
             """)
             result = conn.execute(query, {
                 "user_id": post_data["userId"],
                 "title": post_data["title"],
-                "content": post_data["content"]
+                "content": post_data["content"],
+                "image_url": post_data["image_url"]
             })
             conn.commit() # INSERT 작업 후엔 꼭 commit을 해줘야 DB에 저장됩니다.
             return result.lastrowid # 방금 생성된 게시글의 ID를 반환합니다.
@@ -134,12 +111,16 @@ class PostModel:
         with engine.connect() as conn:
             query = text("""
                 UPDATE posts 
-                SET title = :title, content = :content, updated_at = NOW()
+                SET title = :title, 
+                    content = :content,
+                    image_url = :image_url,
+                    updated_at = NOW()
                 WHERE id = :post_id AND deleted_at IS NULL
             """)
             result = conn.execute(query, {
                 "title": update_data["title"],
                 "content": update_data["content"],
+                "image_url": update_data["image_url"],
                 "post_id": post_id
             })
             conn.commit()

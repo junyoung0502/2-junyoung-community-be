@@ -2,7 +2,7 @@
 import uuid # 세션 ID 생성을 위한 라이브러리
 from security import SecurityUtils
 from sqlalchemy import text
-from database import engine
+from database import engine, execute_query
 from datetime import datetime, timedelta
 
 # 회원 정보를 담을 리스트 (메모리에 저장되므로 서버 재시작 시 초기화됨)
@@ -65,9 +65,9 @@ class UserModel:
         """userId로 사용자 검색"""
         with engine.connect() as conn:
             query = text("""
-                SELECT id, email, nickname, profile_url, account_status, suspension_start_at 
+                SELECT id, email, nickname, password, profile_url, account_status, suspension_start_at 
                 FROM users 
-                WHERE id = :user_id
+                WHERE id = :user_id AND deleted_at IS NULL
             """)
             
             result = conn.execute(query, {"user_id": user_id}).fetchone()  
@@ -78,6 +78,7 @@ class UserModel:
                     "userId": result.id,
                     "email": result.email,
                     "nickname": result.nickname,
+                    "password": result.password,
                     "profileImage": result.profile_url,
                     "status": result.account_status,
                 }
@@ -93,15 +94,15 @@ class UserModel:
         with engine.connect() as conn:
             # text()를 이용해 Raw SQL 작성
             query = text("""
-                INSERT INTO users (email, password, nickname, profileImage, status)
-                VALUES (:email, :password, :nickname, :profileImage, 'active')
+                INSERT INTO users (email, password, nickname, profile_url, account_status)
+                VALUES (:email, :password, :nickname, :profile_url, 'active')
             """)
             
             params = {
                 "email": user_data["email"],
                 "password": hashed_password,
                 "nickname": user_data["nickname"],
-                "profileImage": user_data.get("profileImage")
+                "profile_url": user_data.get("profile_url")
             }
             
             # 3. 쿼리 실행 및 커밋
@@ -111,21 +112,22 @@ class UserModel:
         return True
 
     @staticmethod
-    def update_user(userId: int, update_data: dict):
+    def update_user(user_id: int, update_data: dict):
         '''회원 정보 수정'''
         with engine.connect() as conn:
             # 1. SQL 문을 text()로 감쌉니다.
             query = text("""
                 UPDATE users 
-                SET nickname = :nickname, profileImage = :profileImage 
-                WHERE userId = :userId
+                SET nickname = :nickname, 
+                    profile_url = :profile_url 
+                WHERE Id = :user_id
             """)
             
             # 2. 파라미터 준비
             params = {
                 "nickname": update_data.get("nickname"),
-                "profileImage": update_data.get("profileImage"),
-                "userId": userId
+                "profile_url": update_data.get("profile_url"),
+                "user_id": user_id
             }
             
             # 3. 쿼리 실행
@@ -138,15 +140,15 @@ class UserModel:
             return result.rowcount > 0
 
     @staticmethod
-    def update_password(userId: int, new_password: str):
+    def update_password(user_id: int, new_password: str):
         '''비밀번호 변경'''
         # 1. 새 비밀번호 해싱
         hashed_pw = SecurityUtils.get_password_hash(new_password)
         
         # 2. DB 연결 및 실행
         with engine.connect() as conn:
-            query = text("UPDATE users SET password = :password WHERE userId = :userId")
-            params = {"password": hashed_pw, "userId": userId}
+            query = text("UPDATE users SET password = :password WHERE id = :user_id")
+            params = {"password": hashed_pw, "user_id": user_id}
             
             result = conn.execute(query, params)
             conn.commit()  # 변경 사항 확정
@@ -168,28 +170,29 @@ class UserModel:
             conn.commit()
 
     @staticmethod
-    def delete_user(userId: int):
+    def delete_user(user_id: int):
         '''회원 탈퇴'''
-        # 1. 탈퇴할 유저의 이메일 확인 (세션을 지우기 위해 필요)
-        user = UserModel.find_by_id(userId)
-        if not user:
-            return False
-
         with engine.connect() as conn:
-            # 2. 해당 유저의 모든 세션 삭제
-            # (세션 테이블이 email을 기준으로 되어 있다면 아래 쿼리를 사용합니다)
-            query_session = text("DELETE FROM sessions WHERE email = :email")
-            conn.execute(query_session, {"email": user["email"]})
+            # 1. 실제 삭제 대신 deleted_at 컬럼에 현재 시간을 기록합니다.
 
-            # 3. 사용자 계정 삭제
-            query_user = text("DELETE FROM users WHERE userId = :userId")
-            result = conn.execute(query_user, {"userId": userId})
+            # 1. 유저 계정 소프트 딜리트
+            query_user = text("UPDATE users SET deleted_at = NOW() WHERE id = :user_id")
+            conn.execute(query_user, {"user_id": user_id})
             
-            # 4. 삭제 작업 확정 (커밋)
+            # 2. 작성한 게시글 처리 (선택: 삭제하거나 '알 수 없음'으로 변경)
+            # 여기서는 게시글도 소프트 딜리트 처리합니다.
+            query_posts = text("UPDATE posts SET deleted_at = NOW() WHERE user_id = :user_id")
+            conn.execute(query_posts, {"user_id": user_id})
+            
+            # 3. 작성한 댓글 처리
+            query_comments = text("UPDATE comments SET deleted_at = NOW() WHERE user_id = :user_id")
+            conn.execute(query_comments, {"user_id": user_id})
+            
+            # 4. 좋아요 처리 (좋아요는 보통 즉시 삭제합니다)
+            query_likes = text("DELETE FROM likes WHERE user_id = :user_id")
+            conn.execute(query_likes, {"user_id": user_id})
+
             conn.commit()
-            
-            # 실제 삭제된 행이 1개 이상이면 성공(True)
-            return result.rowcount > 0
 
     @staticmethod
     def create_session(user_id: str):

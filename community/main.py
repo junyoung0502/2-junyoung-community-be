@@ -13,6 +13,8 @@ from utils import limiter
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine  # DB 엔진 가져오기
 from models.user_model import UserModel  # 수정한 유저 모델
+from fastapi.staticfiles import StaticFiles
+
 
 app = FastAPI()
 
@@ -89,3 +91,5 @@ app.include_router(auth_router)
 app.include_router(comment_router)
 app.include_router(like_router)
 app.include_router(user_router)
+
+app.mount("/public", StaticFiles(directory="public"), name="public")

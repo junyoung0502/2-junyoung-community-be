@@ -4,6 +4,9 @@ from models.user_model import UserModel
 from utils import BaseResponse, UserSignupRequest, UserLoginRequest, UserInfo
 from security import SecurityUtils
 
+BASE_URL = "http://127.0.0.1:8000"
+
+
 class AuthController:
 
     @staticmethod
@@ -49,11 +52,14 @@ class AuthController:
 
         session_id = UserModel.create_session(user["userId"])
         # 보안을 위해 토큰은 따로 빼고 정보만 반환
+        db_path = user.get("profile_url")
+        full_url = f"{BASE_URL}{db_path}" if db_path else f"{BASE_URL}/public/images/default-profile.png"
+
         user_info = {
             "userId": user["userId"],
             "email": user["email"],
             "nickname": user["nickname"],
-            "profileImage": user.get("profileImage", "https://image.kr/img.jpg"),
+            "profileImage": full_url, # 여기서 이미 전체 주소를 담아 보냄
             "authToken": session_id
         }
 
