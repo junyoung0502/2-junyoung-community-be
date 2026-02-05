@@ -78,3 +78,18 @@ class AuthController:
         response.delete_cookie(key="session_id")
         
         return BaseResponse(message="LOGOUT_SUCCESS", data=None)
+
+    @staticmethod
+    def check_duplicate(type: str, value: str):
+        is_duplicate = False
+        if type == "email":
+            is_duplicate = UserModel.find_by_email(value) is not None
+        elif type == "nickname":
+            is_duplicate = UserModel.find_by_nickname(value) is not None
+        
+        # 프론트엔드에서 사용하기 편하게 JSON 형태로 반환
+        return {
+                "type": type,
+                "value": value,
+                "is_duplicate": is_duplicate
+            }

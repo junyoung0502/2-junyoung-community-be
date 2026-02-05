@@ -32,3 +32,11 @@ async def logout(
     
     return AuthController.logout(session_id, response)
 
+@router.get("/check-duplicate")
+async def check_duplicate(type: str, value: str):
+    """
+    회원가입 전 이메일/닉네임 중복 여부를 확인하는 API
+    type: 'email' 또는 'nickname'
+    value: 중복을 확인할 값
+    """
+    return AuthController.check_duplicate(type, value)
