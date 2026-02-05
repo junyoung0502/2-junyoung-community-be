@@ -47,7 +47,8 @@ class UserModel:
                     "userId": result.id,
                     "email": result.email,
                     "nickname": result.nickname,
-                    "password": result.password, # 패스워드 체크를 위해 필요!
+                    "password": result.password,
+                    "profileImage": result.profile_url,
                     "status": result.account_status,
                     "suspensionStart": result.suspension_start_at
                 }
@@ -241,18 +242,6 @@ class UserModel:
                     "status": row.get("account_status", "active")
                 }
         return None
-    
-    @staticmethod
-    def delete_session(session_id: str):
-        with engine.connect() as conn:
-            # 1. SQL 작성
-            query = text("DELETE FROM sessions WHERE session_id = :session_id")
-            
-            # 2. 실행
-            conn.execute(query, {"session_id": session_id})
-            
-            # 3. 삭제 작업 확정 (커밋)
-            conn.commit()
 
     @staticmethod
     def is_already_logged_in(email: str):
@@ -264,3 +253,20 @@ class UserModel:
             result = conn.execute(query, {"email": email}).fetchone()
             
             return True if result else False
+        
+
+    @staticmethod
+    def delete_session(session_id: str):
+        """[로그아웃용] 특정 세션 하나만 삭제"""
+        with engine.connect() as conn:
+            query = text("DELETE FROM sessions WHERE session_id = :session_id")
+            conn.execute(query, {"session_id": session_id})
+            conn.commit()
+
+    @staticmethod
+    def delete_all_sessions_by_user(user_id: int):
+        """[비밀번호 변경용] 해당 유저의 모든 기기 세션 삭제 (TRUNCATE 효과)"""
+        with engine.connect() as conn:
+            query = text("DELETE FROM sessions WHERE user_id = :user_id")
+            conn.execute(query, {"user_id": user_id})
+            conn.commit()

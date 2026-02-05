@@ -52,8 +52,12 @@ class AuthController:
 
         session_id = UserModel.create_session(user["userId"])
         # 보안을 위해 토큰은 따로 빼고 정보만 반환
-        db_path = user.get("profile_url")
-        full_url = f"{BASE_URL}{db_path}" if db_path else f"{BASE_URL}/public/images/default-profile.png"
+        db_path = user.get("profileImage")
+
+        if db_path:
+            full_url = f"{BASE_URL}{db_path}"
+        else:
+            full_url = f"{BASE_URL}/public/images/default-profile.png"
 
         user_info = {
             "userId": user["userId"],

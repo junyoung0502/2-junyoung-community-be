@@ -85,6 +85,9 @@ class UserController:
 
         # 2. 변경
         UserModel.update_password(userId, request.newPassword)
+
+        # 3. 모든 세션 삭제 (강제 로그아웃)
+        UserModel.delete_all_sessions_by_user(userId)
         
         return BaseResponse(message="PASSWORD_CHANGE_SUCCESS", data=None)
 
