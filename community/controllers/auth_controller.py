@@ -1,55 +1,99 @@
 # controllers/auth_controller.py
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from models.user_model import UserModel
-from utils import BaseResponse
-from fastapi import Response
+from utils import BaseResponse, UserSignupRequest, UserLoginRequest, UserInfo
+from security import SecurityUtils
+
+BASE_URL = "http://127.0.0.1:8000"
 
 
 class AuthController:
-    @staticmethod
-    def signup(data: dict, response: Response):
-        # 1. 필수값 체크
-        if not data.get("email"): raise HTTPException(status_code=400, detail="EMAIL_REQUIRED")
-        if not data.get("password"): raise HTTPException(status_code=400, detail="PASSWORD_REQUIRED")
-        if not data.get("nickname"): raise HTTPException(status_code=400, detail="NICKNAME_REQUIRED")
 
-        # 2. 중복 체크 (이 코드가 진짜 들어있어야 막힙니다!)
-        if UserModel.find_by_email(data["email"]):
+    @staticmethod
+    def signup(request: UserSignupRequest, response: Response):
+                
+        # 1. 중복 검사 (이메일, 닉네임)
+        if UserModel.find_by_email(request.email):
             raise HTTPException(status_code=409, detail="EMAIL_ALREADY_EXISTS")
-        if UserModel.find_by_nickname(data["nickname"]):
+        if UserModel.find_by_nickname(request.nickname):
             raise HTTPException(status_code=409, detail="NICKNAME_ALREADY_EXISTS")
 
-        # 3. 저장 및 반환 (설계서 규격인 userId로 맞춤)
-        user_id = UserModel.save_user(data)
+        # 2. 저장 및 반환 (설계서 규격인 userId로 맞춤)
+        user_data = request.model_dump()
+        userId = UserModel.save_user(user_data)
+
         response.status_code = 201  # 상태 코드 설정
         return BaseResponse(
             message="REGISTER_SUCCESS", 
-            data={"userId": user_id}
+            data={"userId": userId}
         )
     
     @staticmethod
-    def login(data: dict, response: Response):
-        email = data.get("email")
-        password = data.get("password")
+    def login(request: UserLoginRequest, response: Response):
 
-        if not email:
-            raise HTTPException(status_code=400, detail="EMAIL_REQUIRED")
-        if not password:
-            raise HTTPException(status_code=400, detail="PASSWORD_REQUIRED")
-        
-        user = UserModel.find_by_email(email)
-        if not user or user["password"] != password:
+        user = UserModel.find_by_email(request.email)
+
+        # 1. [401] 사용자 존재 여부 및 비밀번호 일치 여부 확인
+        if not user or not SecurityUtils.verify_password(request.password, user["password"]):
             raise HTTPException(status_code=401, detail="LOGIN_FAILED")
-
-        session_id = UserModel.create_session(email)
         
+        # 2. [403] 정지된 계정 체크 (ACCOUNT_SUSPENDED)
+        if user.get("status") == "suspended_perm":
+            raise HTTPException(status_code=403, detail="ACCOUNT_SUSPENDED")
+        
+        elif user.get("status") == "suspended_temp":
+            # 일시 정지의 경우, 언제 정지됐는지 정보를 함께 주면 더 친절하겠지?
+            detail_msg = f"ACCOUNT_TEMPORARILY_SUSPENDED (Started at: {user.get('suspensionStart')})"
+            raise HTTPException(status_code=403, detail=detail_msg)
+
+        # 3. [409] 이미 로그인된 계정 체크 (ALREADY_LOGIN)
+        if UserModel.is_already_logged_in(request.email):
+            raise HTTPException(status_code=409, detail="ALREADY_LOGIN")
+
+        session_id = UserModel.create_session(user["userId"])
         # 보안을 위해 토큰은 따로 빼고 정보만 반환
+        db_path = user.get("profileImage")
+
+        if db_path:
+            full_url = f"{BASE_URL}{db_path}"
+        else:
+            full_url = f"{BASE_URL}/public/images/default-profile.png"
+
         user_info = {
-            "userId": user["user_id"],
+            "userId": user["userId"],
             "email": user["email"],
             "nickname": user["nickname"],
-            "profileImage": user.get("profileImage", "https://image.kr/img.jpg")
+            "profileImage": full_url, # 여기서 이미 전체 주소를 담아 보냄
+            "authToken": session_id
         }
 
         response.status_code = 200  # 상태 코드 설정
         return session_id, BaseResponse(message="LOGIN_SUCCESS", data=user_info)
+    
+    @staticmethod
+    def logout(session_id: str, response: Response):
+        """
+        로그아웃 비즈니스 로직
+        """
+        # 1. 서버 메모리에서 세션 삭제
+        UserModel.delete_session(session_id)
+        
+        # 2. 브라우저 쿠키 삭제 (만료 시간을 0으로 설정하여 즉시 파기)
+        response.delete_cookie(key="session_id")
+        
+        return BaseResponse(message="LOGOUT_SUCCESS", data=None)
+
+    @staticmethod
+    def check_duplicate(type: str, value: str):
+        is_duplicate = False
+        if type == "email":
+            is_duplicate = UserModel.find_by_email(value) is not None
+        elif type == "nickname":
+            is_duplicate = UserModel.find_by_nickname(value) is not None
+        
+        # 프론트엔드에서 사용하기 편하게 JSON 형태로 반환
+        return {
+                "type": type,
+                "value": value,
+                "is_duplicate": is_duplicate
+            }
