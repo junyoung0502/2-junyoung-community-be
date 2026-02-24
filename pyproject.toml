@@ -42,7 +42,8 @@ dependencies = [
     "email-validator>=2.1.0", 
     "sqlalchemy>=2.0.0",       # DB 연결 필수
     "pymysql>=1.0.0",          # MySQL 드라이버
-    "python-multipart>=0.0.9"  # 로그인/파일업로드 필수
+    "python-multipart>=0.0.9",  # 로그인/파일업로드 필수
+    "cryptography"
 ]
 
 [project.optional-dependencies]
