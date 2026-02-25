@@ -5,30 +5,6 @@ from sqlalchemy import text
 from database import engine, execute_query
 from datetime import datetime, timedelta
 
-# 회원 정보를 담을 리스트 (메모리에 저장되므로 서버 재시작 시 초기화됨)
-# users_db = [
-#     {
-#         "userId": 1,
-#         "email": "jylee0005@gmail.com",
-#         # "password": "$2b$12$cTUCcDU65EhBkjQ5zp1d6evJK5WYr6kDupoT0wwcWIQ04uXU7mEby", #password", 
-#         "password": "$2b$12$g1GwgFvaEwhjn8uRO5HWKexCKw3KaLLBO6Wi6E/FV1XtGO47GtHn2", # dlwnsdud
-#         "nickname": "관리자",
-#         "profileImage": "https://cdn.pixabay.com/photo/2015/10/05/22/37/blank-profile-picture-973460_1280.png",
-#         "status": "active"      # 정상 계정
-#     },
-#     {
-#         "userId": 2,
-#         "email": "bad@user.com",
-#         "password": "password",
-#         "nickname": "badguy",
-#         "profileImage": None,
-#         "status": "suspended"   # [403 테스트용] 정지된 계정
-#     }
-# ]
-
-# # { "세션ID": "이메일" } 형태로 저장할 세션 창고
-# sessions_db = {}
-
 class UserModel:
     @staticmethod
     def find_by_email(email: str):
@@ -103,7 +79,7 @@ class UserModel:
                 "email": user_data["email"],
                 "password": hashed_password,
                 "nickname": user_data["nickname"],
-                "profile_url": user_data.get("profile_url")
+                "profile_url": user_data.get("profileImage")  # profileImage 키로 받아서 profile_url 컬럼에 저장
             }
             
             # 3. 쿼리 실행 및 커밋
@@ -190,7 +166,7 @@ class UserModel:
             conn.execute(query_comments, {"user_id": user_id})
             
             # 4. 좋아요 처리 (좋아요는 보통 즉시 삭제합니다)
-            query_likes = text("DELETE FROM likes WHERE user_id = :user_id")
+            query_likes = text("DELETE FROM post_likes WHERE user_id = :user_id")
             conn.execute(query_likes, {"user_id": user_id})
 
             conn.commit()
