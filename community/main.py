@@ -22,7 +22,7 @@ app = FastAPI()
 origins = [
     "http://localhost:5500",      # 로컬 개발 환경 (localhost)
     "http://127.0.0.1:5500",    # 로컬 개발 환경 (IP 주소)
-    # "https://your-domain.com",  # 나중에 실제 배포할 도메인
+    "http://dlwnsdud.duckdns.org"  # 나중에 실제 배포할 도메인
 ]
 
 app.add_middleware(
