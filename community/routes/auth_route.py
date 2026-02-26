@@ -3,7 +3,7 @@ from fastapi import APIRouter, Response, Request, Depends
 from controllers.auth_controller import AuthController
 from utils import UserSignupRequest, UserLoginRequest, BaseResponse, limiter, get_current_user, UserInfo, UserUpdateRequest, PasswordChangeRequest
 
-router = APIRouter(prefix="/api/v1/auth")
+router = APIRouter(prefix="/auth")
 
 @router.post("/signup", status_code=201, response_model=BaseResponse)
 @limiter.limit("5/minute")  # 분당 5회로 제한

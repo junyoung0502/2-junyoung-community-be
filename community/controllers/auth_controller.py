@@ -3,8 +3,7 @@ from fastapi import HTTPException, Response
 from models.user_model import UserModel
 from utils import BaseResponse, UserSignupRequest, UserLoginRequest, UserInfo
 from security import SecurityUtils
-
-BASE_URL = "http://127.0.0.1:8000"
+from config import BASE_URL
 
 
 class AuthController:

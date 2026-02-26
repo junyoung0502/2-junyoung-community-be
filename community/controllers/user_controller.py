@@ -6,9 +6,7 @@ from models.user_model import UserModel
 from utils import BaseResponse, UserInfo, UserUpdateRequest, PasswordChangeRequest
 from security import SecurityUtils
 from utils import FileService, BaseResponse
-
-BASE_URL = "http://127.0.0.1:8000"
-
+from config import BASE_URL
 
 class UserController:
     @staticmethod
